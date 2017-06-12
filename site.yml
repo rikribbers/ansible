@@ -1,0 +1,76 @@
+---
+- hosts: test
+  user: superman
+  become: true
+  become_user: root
+  # Do gather fact, but not here after the pre_tasks that install python on host.
+  gather_facts: no
+  vars:
+    sudoers:
+      - superman
+      - rik
+    #LATER: make user and password a dictionary and iterate over it. structure: <username><ssh key location><password>
+    users:
+      - rik
+    # see https://docs.ansible.com/ansible/faq.html#how-do-i-generate-crypted-passwords-for-the-user-module
+    # created with:
+    # python -c "from passlib.hash import sha512_crypt; import getpass; print sha512_crypt.using(rounds=5000).hash(getpass.getpass())"
+    # input: you would love to know that right?
+    password: '$6$ICSMfftYR4MpMsFR$i3ZGDDBp6w4Rh/Re2W9ECCNC6No2C2JDGCkGVwjcMV9geaNXjgIX5.22BAXdZE/x6QsIf3/6fEBKG8kfKrxYD/'
+
+  # Host should contain python2+ for running ansible stuff
+  pre_tasks:
+    - name: Ensure python is there
+      raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
+      # Now it is time to gather facts
+    - setup:
+
+  tasks:
+    - name: 'Ensure users are there'
+      user:
+        name: '{{ item }}'
+        state: present
+        append: no
+        shell: /bin/bash
+        password: '{{ password }}'
+      with_items: 
+        - "{{ users }}"
+
+    - name: 'Ensure user sshkeys are there'
+      authorized_key:
+        user: '{{ item.key }}'
+        state: present
+        exclusive: yes
+        key: "{{ lookup('file', '{{ item.value }}' ) }}"
+      with_dict:
+        superman : '.ssh/id_rsa_superman_ansible.pub'
+        rik : '.ssh/id_rsa_rik.pub'
+
+    - name: Make sure we have a 'wheel' group
+      group:
+        name: wheel
+        state: present
+
+    - name: Allow 'wheel' group to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: '^%wheel'
+        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+        validate: visudo -cf %s
+
+    - name: Add sudoers users to wheel group
+      user:
+        name: "{{ item }}"
+        groups: wheel
+        append: yes
+      with_items: "{{ sudoers }}"
+
+    - include: tasks/nginx.yml
+
+  roles:
+    # LATER - dev-sec.os-hardening
+    - dev-sec.ssh-hardening
+
+
+
