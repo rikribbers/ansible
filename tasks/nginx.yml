@@ -1,47 +1,72 @@
 ---
-- hosts: all
-  become: true
-  become_user: root
-  gather_facts: no
+# install nginx with letsencrypt
+# inspired from:
+#   https://blog.evantahler.com/ansible-letsencrypt-nginx-and-actionhero-7be135fc6319
+#   https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-16-04
 
-  tasks:
-    - name: Install nginx
-      apt: name=nginx state=latest
+  - name: Ensure nginx is installed
+    apt: name=nginx state=latest
 
-    - name: Remove default nginx config
-      file: name=/etc/nginx/sites-enabled/default state=absent
+  - apt_repository:
+      repo: 'ppa:certbot/certbot'
 
-    # - name: Install system nginx config
-    #   template:
-    #     src: templates/nginx.conf.j2
-    #     dest: /etc/nginx/nginx.conf
+  - name: Install certbot
+    apt: name=python-certbot-nginx state=latest
 
-    # - name: Install nginx site for letsencrypt requests
-    #   template:
-    #     src: templates/nginx-http.j2
-    #     dest: /etc/nginx/sites-enabled/http
+  - name: Remove default nginx config
+    file: name=/etc/nginx/sites-enabled/default state=absent
 
-    - name: Reload nginx to activate letsencrypt site
-      service: name=nginx state=restarted   
+  - name: Install system nginx config
+    template:
+      src: templates/nginx.conf.j2
+      dest: /etc/nginx/nginx.conf
 
-    # from  https://blog.evantahler.com/ansible-letsencrypt-nginx-and-actionhero-7be135fc6319
+  - name: Install nginx site for {{ domain_name }}
+    template:
+      src: templates/nginx-site.j2
+      dest: /etc/nginx/sites-enabled/{{ domain_name }}
 
+  - name: Ensure /var/www/{{ domain_name }} exists
+    file:
+      path: /var/www/{{ domain_name }}
+      state: directory
 
-    # - name: Generate dhparams
-    #   shell: openssl dhparam -out /etc/nginx/dhparams.pem 2048
-    #   args:
-    #     creates: /etc/nginx/dhparams.pem
+  - name: Verify is dhparam.pem exists
+    stat:
+      path: etc/nginx/dhparams.pem
+    register: p
 
-    # - name: Install nginx site for specified site
-    #   template:
-    #     src: templates/nginx-le.j2
-    #     dest: /etc/nginx/sites-enabled/le
+  - name: Generate dhparams
+    shell: openssl dhparam -out /etc/nginx/dhparams.pem 2048
+    args:
+      creates: /etc/nginx/dhparams.pem
+    when: p.stat.exists
 
-    # - name: Reload nginx to activate specified site
-    #   service: name=nginx state=restarted
+  # And now some firewall rules
+  - ufw:
+     rule: allow
+     name: Nginx Full
 
-    # - name: Add letsencrypt cronjob for cert renewal
-    #   cron:
-    #     name: letsencrypt_renewal
-    #     special_time: weekly
-    #     job: letsencrypt --renew certonly -n --webroot -w /var/www/letsencrypt -m {{ letsencrypt_email }} --agree-tos -d {{ domain_name }} && service nginx reload
+  - name: Restart nginx to activate site {{ domain_name }}
+    service: name=nginx state=restarted
+    when:
+      - "{{ production }}"
+
+  # Generate certificates
+  - name: Check if we've generated a cert already
+    stat:
+      path: /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem
+    register: cert_stats
+
+  - name: Generate certs (first time)
+    shell: "certbot-auto certonly --standalone -d www.{{ domain_name }} -d {{ domain_name }} --email {{ letsencrypt_email}} --non-interactive --agree-tos"
+    when:
+      - "{{ production }}"
+      - cert_stats.stat.exists == false
+
+  - name: Ensure crontab for auto renewal is there
+    cron:
+      name: "renew certifcates nginx/letsencrypt"
+      minute: "13"
+      hour: "13"
+      job: "usr/bin/certbot renew --quiet --renew-hook 'service nginx reload'"
