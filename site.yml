@@ -18,6 +18,7 @@
     # created with:
     # python -c "from passlib.hash import sha512_crypt; import getpass; print sha512_crypt.using(rounds=5000).hash(getpass.getpass())"
     # input: you would love to know that right?
+    # LATER make this on a per user basis
     password: '$6$ICSMfftYR4MpMsFR$i3ZGDDBp6w4Rh/Re2W9ECCNC6No2C2JDGCkGVwjcMV9geaNXjgIX5.22BAXdZE/x6QsIf3/6fEBKG8kfKrxYD/'
 
   # Host should contain python2+ for running ansible stuff
@@ -53,7 +54,7 @@
         state: present
         exclusive: yes
         key: "{{ lookup('file', '.ssh/id_rsa_superman.pub' ) }}"
-  
+
     - name: Make sure we have a 'wheel' group
       group:
         name: wheel

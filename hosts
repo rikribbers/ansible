@@ -1,6 +1,5 @@
 # Ungrouped hosts, specify before any group headers.
 localhost	ansible_connection=local
-# LATERrikribbers ansible_host=192.168.178.87 ansible_user=superman letsencrypt_email=rik.ribbers@gmail.com domain_name=rikribbers.nl
 
 crescit ansible_host=185.87.186.58  ansible_connection=ssh ansible_user=superman letsencrypt_email=rik.ribbers@gmail.com domain_name=crescit.nl
 

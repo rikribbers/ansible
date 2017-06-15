@@ -1,0 +1,13 @@
+---
+
+- name: Ensure Universal firewall is enabled
+  ufw:
+    state: enabled
+    policy: reject
+    # LATER turn logging off when works
+    logging: on
+
+- name: Ensure SSH is allowed
+  ufw:
+    rule: allow
+    name: OpenSSH
