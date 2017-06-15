@@ -19,11 +19,13 @@
 
 # Initial run
 
-Assume a default ubuntu server 16.04 installed with only ssh-server and a user 'superman' and known password
+Assume a default ubuntu server 16.04 installed with only ssh-server and a user
+'superman' that can sudo and has a known password.
 
     > ansible-playbook site.yml --ask-pass  --ask-sudo-pass
 
-The initial run sets up the users, sudo (without password for superman), hardens the os and ssh setup
+The initial run sets up the users, sudo (without password), hardens the os and
+ssh setup
 
 # Testing
     > ssh -i .ssh/id_rsa_superman_asible superman@<hostname>
@@ -38,6 +40,7 @@ You can now ssh to the machine with ssh keys. So use this when installing
 # Production run
 
 There are certain things (like letsencrypt certificate generation/renewal) that
-can only be done in productions. For this a extra variable must be passed:
+can only be done in production. For this a extra variable must be passed:
 
-    >  ansible-playbook site.yml --private-key .ssh/id_rsa_superman --extra-vars "production=true"
+    >  ansible-playbook site.yml --private-key .ssh/id_rsa_superman  \
+    >  --extra-vars "production=true"

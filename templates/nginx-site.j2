@@ -12,6 +12,7 @@ server {
 # Rewrite http://{{ domain_name }} to https://{{ domain_name }}
 server {
     listen [::]:80;
+    listen 80;
     server_name {{ domain_name }} ;
     rewrite ^ https://$server_name$request_uri? permanent;
 
@@ -33,7 +34,11 @@ server {
 # And now the server configuration
 server {
     listen 443 ssl default deferred;
+    listen [::]:443 ssl default deferred;
     server_name {{ domain_name }};
+
+    # config to enable HSTS(HTTP Strict Transport Security)
+    add_header Strict-Transport-Security "max-age=63072000; includeSubdomains;";
 
     ssl on;
     ssl_certificate         /etc/letsencrypt/live/www.{{ domain_name }}/fullchain.pem;
