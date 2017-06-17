@@ -83,21 +83,28 @@
       register: login_result
       with_items: "{{ users }}"
 
-    - name: Ensure user superman can login with ssh keys
-      local_action: shell ssh -i .ssh/id_rsa_{{ item }} {{ item }}@"{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}" "echo success"
-      register: login_result
-      with_items:
-        - superman
-
     - name: Verify user login attempts
       fail: msg= "User {{ item.item }} cannot login"
       with_items: "{{ login_result.results }}"
       when: item.stdout != "success"
 
+    - name: Ensure user superman can login with ssh keys
+      local_action: shell ssh -i .ssh/id_rsa_{{ item }} {{ item }}@"{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}" "echo success"
+      register: login_result_superman
+      with_items:
+        - superman
+
+    - name: Verify user login attempts
+      fail: msg= "User {{ item.item }} cannot login"
+      with_items: "{{ login_result_superman.results }}"
+      when: item.stdout != "success"
+
     - include: tasks/ufw.yml
     - include: tasks/nginx.yml
-
+    - include: tasks/mail.yml
+    - include: tasks/mail-workaround.yml
 
   roles:
     # LATER - dev-sec.os-hardening
     - dev-sec.ssh-hardening
+    - angstwad.docker_ubuntu

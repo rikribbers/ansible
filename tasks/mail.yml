@@ -1,0 +1,54 @@
+---
+
+- name: Ensure /opt/docker/mail exists
+  file:
+    path: /opt/docker/mail
+    state: directory
+
+- name: remove container
+  docker_container:
+    name: mail
+    state: absent
+
+- name: Ensure firewall allows mail
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+  with_items:
+    - "25"
+    - "110"
+    - "143"
+    - "465"
+    - "587"
+    - "993"
+    - "995"
+
+- name: Ensure firewall allows mail
+  ufw:
+    rule: allow
+    port: 110
+    proto: tcp
+
+- name: Ensure docker container with poste.io is up and running
+  docker_container:
+    name: mail
+    image: analogic/poste.io:1.0.4
+    restart: yes
+    ports:
+      - "25:25"
+      # Here we overwite the localport 80 as I want my own nginx server in
+      # front of docker.
+      - "8081:80"
+      - "110:110"
+      - "143:143"
+      - "465:465"
+      - "587:587"
+      - "993:993"
+      - "995:995"
+    env:
+      # HTTPS is done by the nginx on the host
+      HTTPS: "OFF"
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - /opt/docker/mail:/data
+    state: started

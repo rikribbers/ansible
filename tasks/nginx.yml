@@ -61,6 +61,9 @@
   - name: Remove initial letsencrypt site config
     file: name=/etc/nginx/sites-enabled/initial state=absent
 
+  - name: Remove nginx site for {{ domain_name }}
+    file: name=/etc/nginx/sites-enabled/{{ domain_name }} state=absent
+
   - name: Install nginx site for {{ domain_name }}
     template:
       src: templates/nginx-site.j2

@@ -11,6 +11,7 @@
 
     > ansible-galaxy install dev-sec.os-hardening  
     > ansible-galaxy install dev-sec.ssh-hardening
+    > ansible-galaxy install angstwad.docker_ubuntu
 
 # Generate the ssh keys on control node
 
