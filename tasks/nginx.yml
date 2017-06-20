@@ -53,7 +53,7 @@
         - cert_stats.stat.exists == false
 
   - name: Generate certs (first time)
-    shell: "certbot certonly --webroot --webroot-path /var/www/initial -d www.{{ domain_name }} -d {{ domain_name }} --email {{ letsencrypt_email}} --non-interactive --agree-tos"
+    shell: "certbot certonly --webroot --webroot-path /var/www/initial -d www.{{ domain_name }} -d {{ domain_name }} -d mail.{{ domain_name }} --email {{ letsencrypt_email}} --non-interactive --agree-tos"
     when:
       - "{{ production }}"
       - cert_stats.stat.exists == false

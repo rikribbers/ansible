@@ -102,7 +102,6 @@
     - include: tasks/ufw.yml
     - include: tasks/nginx.yml
     - include: tasks/mail.yml
-    - include: tasks/mail-workaround.yml
 
   roles:
     # LATER - dev-sec.os-hardening
