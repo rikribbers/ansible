@@ -19,12 +19,6 @@
     - "587"
     - "993"
     - "995"
-
-- name: Ensure firewall rejects insecure mail
-  ufw:
-    rule: reject
-    port: "{{ item }}"
-  with_items:
     - "110"
     - "143"
     - "25"
@@ -36,12 +30,12 @@
     image: analogic/poste.io:latest
     restart: yes
     ports:
-      # No insecure SMTP - "25:25"
+      - "25:25"
       # Here we overwite the localport 80 as I want my own nginx server in
       # front of docker.
       - "8081:80"
-      # No insecure POP - "110:110"
-      # No insecure IMAP - "143:143"
+      - "110:110"
+      - "143:143"
       - "465:465"
       - "587:587"
       - "993:993"

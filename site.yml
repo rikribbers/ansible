@@ -6,7 +6,7 @@
   # Do gather fact, but not here after the pre_tasks that install python on host.
   gather_facts: no
   vars:
-    # LATER docker_opts: '"--ipv6 --fixed-cidr-v6="2a00:f10:121:b00:1:1::/80"'
+    docker_opts: '--ipv6 --fixed-cidr-v6="fe80:1:1::/64"'
 
     sudoers:
       - superman
