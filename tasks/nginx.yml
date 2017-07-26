@@ -32,6 +32,16 @@
       path: /etc/letsencrypt/live/www.{{ domain_name }}/fullchain.pem
     register: cert_stats
 
+  - name: Ensure /var/www/letsencypt/.well-known/acme-challenge exists
+    file:
+      path: /var/www/letsencrypt/.well-known/acme-challenge
+      state: directory
+
+  - name: Install letsencrypt ACME challenge config for {{ domain_name }}
+    template:
+      src: templates/letsencrypt-acme-challenge.conf
+      dest: /etc/nginx/snippets/letsencrypt-acme-challenge.conf
+
   # Create a temp site for initial acme challenge
   - name: Install nginx site for initial letsencrypt certificates
     template:
@@ -53,7 +63,7 @@
         - cert_stats.stat.exists == false
 
   - name: Generate certs (first time)
-    shell: "certbot certonly --webroot --webroot-path /var/www/initial -d www.{{ domain_name }} -d {{ domain_name }} -d mail.{{ domain_name }} --email {{ letsencrypt_email}} --non-interactive --agree-tos"
+    shell:  "certbot certonly --webroot --webroot-path /var/www/letsencrypt -d www.{{ domain_name }} -d {{ domain_name }} -d mail.{{ domain_name }} --email {{ letsencrypt_email}} --non-interactive --agree-tos"
     when:
       - "{{ production }}"
       - cert_stats.stat.exists == false
@@ -100,6 +110,6 @@
       name: "renew certifcates nginx/letsencrypt"
       minute: "13"
       hour: "13"
-      job: "/usr/bin/certbot renew --quiet --renew-hook 'openssl dhparam -out /etc/nginx/dhparams.pem 4048 && service nginx reload'"
+      job: "/usr/bin/certbot renew --quiet --renew-hook 'openssl dhparam -out /etc/nginx/dhparams.pem 2048 && service nginx reload'"
     when:
         - "{{ production }}"

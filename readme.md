@@ -12,7 +12,7 @@ without a password.
 
     > cd ~/virtualenvs/
     > virtualenv ansible
-    > source bin/activate
+    > source ansible/bin/activate
     > pip install --upgrade pip
     > pip install --upgrade setuptools
     > pip install ansible
@@ -46,12 +46,12 @@ ssh setup
 
 You can now ssh to the machine with ssh keys. So use this when installing
 
-    >  ansible-playbook site.yml --private-key .ssh/id_rsa_superman
+    >  ansible-playbook site.yml --ask-sudo --private-key .ssh/id_rsa_superman
 
 # Production run
 
 There are certain things (like letsencrypt certificate generation/renewal) that
 can only be done in production. For this a extra variable must be passed:
 
-    >  ansible-playbook site.yml --private-key .ssh/id_rsa_superman  \
+    >  ansible-playbook site.yml --ask-sudo --private-key .ssh/id_rsa_superman \
     >  --extra-vars "production=true"

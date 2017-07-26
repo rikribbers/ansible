@@ -4,10 +4,6 @@ server {
     listen [::]:80;
     server_name  www.{{ domain_name }};
 
-    # letsencrypt configuration
-    location /.well-known/acme-challenge {
-        root /var/www/initial;
-        try_files $uri $uri/ =404;
-    }
+    include /etc/nginx/snippets/letsencrypt-acme-challenge.conf;
 
 }

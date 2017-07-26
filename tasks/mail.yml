@@ -46,7 +46,7 @@
     volumes:
       - /etc/localtime:/etc/localtime
       - /opt/docker/mail:/data
-      - /etc/letsencrypt/live/www.{{ domain_name }}/privkey.pem:/etc/ssl/server.key
-      - /etc/letsencrypt/live/www.{{ domain_name }}/fullchain.pem:/etc/ssl/server-combined.crt
-      - /etc/letsencrypt/live/www.{{ domain_name }}/cert.pem:/etc/ssl/server.crt
+      - /etc/letsencrypt/live/mail.{{ domain_name }}/privkey.pem:/etc/ssl/server.key:ro
+      - /etc/letsencrypt/live/mail.{{ domain_name }}/fullchain.pem:/etc/ssl/server-combined.crt:ro
+      - /etc/letsencrypt/live/mail.{{ domain_name }}/cert.pem:/etc/ssl/server.crt:ro
     state: started
