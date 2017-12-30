@@ -1,115 +1,66 @@
 ---
-# install nginx with letsencrypt
-# inspired from:
-#   https://blog.evantahler.com/ansible-letsencrypt-nginx-and-actionhero-7be135fc6319
-#   https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-16-04
 
-  - name: Ensure nginx is installed
-    apt: name=nginx state=latest
+- name: Ensure nginx is installed
+  apt: name=nginx state=latest
 
-  - apt_repository:
-      repo: 'ppa:certbot/certbot'
+- name: Ensure certbot repository is there
+  apt_repository:
+    repo: 'ppa:certbot/certbot'
 
-  - name: Install certbot
-    apt: name=python-certbot-nginx state=latest
+- name: Ensure certbot is installed
+  apt: name=python-certbot-nginx state=latest
 
-  - name: Install system nginx config
-    template:
-      src: templates/nginx.conf.j2
-      dest: /etc/nginx/nginx.conf
+# Generate certificates if do not exits
+- name: Check if we've generated a cert already
+  stat:
+    path: /etc/letsencrypt/live/www.{{ domain_name }}/fullchain.pem
+  register: cert_stats
 
-  - name: Remove default nginx config
-    file: name=/etc/nginx/sites-enabled/default state=absent
+- name: Ensure /var/www/{{ domain_name }} exists
+  file:
+    path: /var/www/{{ domain_name }}
+    state: directory
+    owner: www-data
+    group: www-data
 
-  # And now some firewall rules
-  - ufw:
-     rule: allow
-     name: Nginx Full
+- name: Ensure /var/www/letsencrypts/.well-known/acme-challenge exists
+  file:
+    path: /var/www/letsencrypt/.well-known/acme-challenge
+    state: directory
+    owner: www-data
+    group: www-data
 
-  # Generate certificates if do not exits
-  - name: Check if we've generated a cert already
-    stat:
-      path: /etc/letsencrypt/live/www.{{ domain_name }}/fullchain.pem
-    register: cert_stats
+- name: Install letsencrypte acme challenge config
+  template:
+    src: templates/letsencrypt-acme-challenge.conf
+    dest: /etc/nginx/snippets/letsencrypt-acme-challenge.conf
 
-  - name: Ensure /var/www/letsencypt/.well-known/acme-challenge exists
-    file:
-      path: /var/www/letsencrypt/.well-known/acme-challenge
-      state: directory
+- name: Install default index.html page
+  template:
+    src: templates/index.html.j2
+    dest: /var/www/{{ domain_name }}/index.html
 
-  - name: Install letsencrypt ACME challenge config for {{ domain_name }}
-    template:
-      src: templates/letsencrypt-acme-challenge.conf
-      dest: /etc/nginx/snippets/letsencrypt-acme-challenge.conf
+- name: Install initial nginx site for {{ domain_name }}
+  template:
+    src: templates/nginx-initial.j2
+    dest: /etc/nginx/sites-enabled/{{ domain_name }}
+  when:
+    - cert_stats.stat.exists == false
 
-  # Create a temp site for initial acme challenge
-  - name: Install nginx site for initial letsencrypt certificates
-    template:
-      src: templates/nginx-initial.j2
-      dest: /etc/nginx/sites-enabled/initial
-    when:
-        - cert_stats.stat.exists == false
+- name: Restart nginx to activate site {{ domain_name }}
+  service: name=nginx state=restarted
+  when:
+    - cert_stats.stat.exists == false
 
-  - name: Ensure /var/www/initial exists
-    file:
-      path: /var/www/initial
-      state: directory
-    when:
-      - cert_stats.stat.exists == false
+- name: Ensure certbot generates the Let's encrypt certificates
+  command: certbot certonly --webroot --webroot-path /var/www/letsencrypt -d www.{{ domain_name }} -d {{ domain_name }} -d mail.{{ domain_name }} --email {{ letsencrypt_email }} --non-interactive --agree-tos
+  when:
+    - cert_stats.stat.exists == false
 
-  - name: Restart nginx to activate initial letsencrypt site
-    service: name=nginx state=restarted
-    when:
-        - cert_stats.stat.exists == false
+- name: Install nginx site for {{ domain_name }}
+  template:
+    src: templates/nginx-site.j2
+    dest: /etc/nginx/sites-enabled/{{ domain_name }}
 
-  - name: Generate certs (first time)
-    shell:  "certbot certonly --webroot --webroot-path /var/www/letsencrypt -d www.{{ domain_name }} -d {{ domain_name }} -d mail.{{ domain_name }} --email {{ letsencrypt_email}} --non-interactive --agree-tos"
-    when:
-      - "{{ production }}"
-      - cert_stats.stat.exists == false
-
-  - name: Remove initial letsencrypt site config
-    file: name=/etc/nginx/sites-enabled/initial state=absent
-
-  - name: Remove nginx site for {{ domain_name }}
-    file: name=/etc/nginx/sites-enabled/{{ domain_name }} state=absent
-
-  - name: Install nginx site for {{ domain_name }}
-    template:
-      src: templates/nginx-site.j2
-      dest: /etc/nginx/sites-enabled/{{ domain_name }}
-
-  - name: Ensure /var/www/{{ domain_name }} exists
-    file:
-      path: /var/www/{{ domain_name }}
-      state: directory
-
-  - name: Install default index.html page
-    template:
-      src: templates/index.html.j2
-      dest: /var/www/{{ domain_name }}/index.html
-
-  - name: Verify is dhparam.pem exists
-    stat:
-      path: /etc/nginx/dhparams.pem
-    register: p
-
-  - name: Generate dhparams
-    shell: openssl dhparam -out /etc/nginx/dhparams.pem 2048
-    args:
-      creates: /etc/nginx/dhparams.pem
-    when: p.stat.exists == false
-
-  - name: Restart nginx to activate site {{ domain_name }}
-    service: name=nginx state=restarted
-    when:
-      - "{{ production }}"
-
-  - name: Ensure crontab for auto renewal is there
-    cron:
-      name: "renew certifcates nginx/letsencrypt"
-      minute: "13"
-      hour: "13"
-      job: "/usr/bin/certbot renew --quiet --renew-hook 'openssl dhparam -out /etc/nginx/dhparams.pem 2048 && service nginx reload'"
-    when:
-        - "{{ production }}"
+- name: Restart nginx to activate site {{ domain_name }}
+  service: name=nginx state=restarted

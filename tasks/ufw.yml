@@ -4,10 +4,14 @@
   ufw:
     state: enabled
     policy: reject
-    # LATER turn logging off when works
-    logging: on
+    logging: off
 
 - name: Ensure SSH is allowed
   ufw:
     rule: allow
     name: OpenSSH
+
+- name: Ensure Nginx is allowed
+  ufw:
+   rule: allow
+   name: Nginx Full

@@ -19,7 +19,6 @@ without a password.
 
 ## Install Dependancies on control node
 
-    > ansible-galaxy install dev-sec.os-hardening  
     > ansible-galaxy install dev-sec.ssh-hardening
     > ansible-galaxy install angstwad.docker_ubuntu
 
@@ -47,11 +46,3 @@ ssh setup
 You can now ssh to the machine with ssh keys. So use this when installing
 
     >  ansible-playbook site.yml --ask-sudo --private-key .ssh/id_rsa_superman
-
-# Production run
-
-There are certain things (like letsencrypt certificate generation/renewal) that
-can only be done in production. For this a extra variable must be passed:
-
-    >  ansible-playbook site.yml --ask-sudo --private-key .ssh/id_rsa_superman \
-    >  --extra-vars "production=true"

@@ -1,0 +1,88 @@
+---
+- name: Ensure /home/.ssh exists
+  file:
+    path: /home/.ssh
+    state: directory
+
+- name: Ensure /home/.ssh/{{item}} exists
+  file:
+    path: /home/.ssh/{{item}}
+    state: directory
+  with_items:
+    - "{{ users }}"
+
+- name: Ensure /home/.ssh/superman exists
+  file:
+    path: /home/.ssh/superman
+    state: directory
+
+- name: Ensure /home/.ssh/superman links to /home/superman/.ssh
+  file:
+    src: "/home/.ssh/superman"
+    dest: "/home/superman/.ssh"
+    state: link
+
+- name: 'Ensure superman sshkeys are there'
+  authorized_key:
+    user: superman
+    state: present
+    exclusive: yes
+    key: "{{ lookup('file', '.ssh/id_rsa_superman.pub' ) }}"
+
+- name: Ensure users are there
+  user:
+    name: "{{ item }}"
+    state: present
+    append: yes
+    shell: /bin/bash
+    password: "{{ password }}"
+    groups: "sudo"
+  with_items:
+    - "{{ users }}"
+
+- name: Ensure /home/.ssh/{{item}} links to /home/{{item}}/.ssh
+  file:
+    src: "/home/.ssh/{{item}}"
+    dest: "/home/{{item}}/.ssh"
+    state: link
+  with_items:
+    - "{{ users }}"
+
+- name: 'Ensure user sshkeys are there'
+  authorized_key:
+    user: '{{ item }}'
+    state: present
+    exclusive: yes
+    key: "{{ lookup('file', '.ssh/id_rsa_{{ item }}.pub' ) }}"
+  with_items: "{{ users }}"
+
+
+# This a tricky step as this disables password authentication as set by the
+# dev-sec.ssh-hardening role.
+- name: Restart sshd to activate config
+  service: name=sshd state=restarted
+
+
+- name: Ensure user superman can login with ssh keys
+  local_action: command ssh -i .ssh/id_rsa_{{ item }} {{ item }}@"{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}" "echo success"
+  register: login_result_superman
+  with_items:
+    - "superman"
+
+- name: Verify user login attempts
+  fail: msg= "User {{ item.item }} cannot login"
+  with_items: "{{ login_result_superman.results }}"
+  when: item.stdout != "success"
+
+# LATER: This can fail due to local users need to provide sudo password
+# to become root locally. can be fixed by running "sudo ls", provide password
+# or run ansible_playbook as root (using sudo)
+- name: Ensure users login with ssh keys
+  local_action: shell ssh -i .ssh/id_rsa_{{ item }} {{ item }}@"{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}" "echo success"
+  register: login_result
+  with_items: "{{ users }}"
+
+- name: Verify user login attempts
+  fail: msg= "User {{ item.item }} cannot login"
+  with_items: "{{ login_result.results }}"
+  when: item.stdout != "success"

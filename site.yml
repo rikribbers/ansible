@@ -5,15 +5,15 @@
   become_user: root
   # Do gather fact, but not here after the pre_tasks that install python on host.
   gather_facts: no
-  vars:
-    docker_opts: '--ipv6 --fixed-cidr-v6="fe80:1:1::/64"'
+  roles:
+    - dev-sec.ssh-hardening
 
-    sudoers:
-      - superman
-      - rik
-    # Note that superman is always assumed to be there and capable of sudoing
+  vars:
+    network_ipv6_enable: true
+    ssh_listen_to: ['0.0.0.0','::']
+    docker_opts: '--ipv6 --fixed-cidr-v6="fe80:1:1::/64"'
     users:
-      - rik
+      - "rik"
 
 
     # see https://docs.ansible.com/ansible/faq.html#how-do-i-generate-crypted-passwords-for-the-user-module
@@ -26,86 +26,24 @@
   # Host should contain python2+ for running ansible stuff
   pre_tasks:
     - name: Ensure python is there
-      raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
+      raw: test -e /usr/bin/python || ( apt install -y python-minimal)
+    - name: Ensure APT cache is actual
+      apt: update_cache=yes
       # Now it is time to gather facts
     - setup:
+    - name: Ensure nginx is installed
+      apt: name=nginx state=latest
+    - name: Esure latest updates are installed
+      apt: upgrade=dist
+    - name: Check if a reboot is required
+      register: file
+      stat: path=/var/run/reboot-required get_md5=no
+    - name: Reboot the server
+      command: /sbin/reboot
+      when: file.stat.exists == true
 
   tasks:
-
-    - name: 'Ensure users are there'
-      user:
-        name: '{{ item }}'
-        state: present
-        append: no
-        shell: /bin/bash
-        password: '{{ password }}'
-      with_items:
-        - "{{ users }}"
-
-    - name: 'Ensure user sshkeys are there'
-      authorized_key:
-        user: '{{ item }}'
-        state: present
-        exclusive: yes
-        key: "{{ lookup('file', '.ssh/id_rsa_{{ item }}.pub' ) }}"
-      with_items: "{{ users }}"
-
-    - name: 'Ensure superman sshkeys are there'
-      authorized_key:
-        user: superman
-        state: present
-        exclusive: yes
-        key: "{{ lookup('file', '.ssh/id_rsa_superman.pub' ) }}"
-
-    - name: Make sure we have a 'wheel' group
-      group:
-        name: wheel
-        state: present
-
-    - name: Allow 'wheel' group to have passwordless sudo
-      lineinfile:
-        dest: /etc/sudoers
-        state: present
-        regexp: '^%wheel'
-        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
-        validate: visudo -cf %s
-
-    - name: Add sudoers users to wheel group
-      user:
-        name: "{{ item }}"
-        groups: wheel
-        append: yes
-      with_items: "{{ sudoers }}"
-
-    - name: Restart sshd to activate config
-      service: name=sshd state=restarted
-
-    - name: Ensure users login with ssh keys
-      local_action: shell ssh -i .ssh/id_rsa_{{ item }} {{ item }}@"{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}" "echo success"
-      register: login_result
-      with_items: "{{ users }}"
-
-    - name: Verify user login attempts
-      fail: msg= "User {{ item.item }} cannot login"
-      with_items: "{{ login_result.results }}"
-      when: item.stdout != "success"
-
-    - name: Ensure user superman can login with ssh keys
-      local_action: shell ssh -i .ssh/id_rsa_{{ item }} {{ item }}@"{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}" "echo success"
-      register: login_result_superman
-      with_items:
-        - superman
-
-    - name: Verify user login attempts
-      fail: msg= "User {{ item.item }} cannot login"
-      with_items: "{{ login_result_superman.results }}"
-      when: item.stdout != "success"
-
+    - include: tasks/ssh.yml
     - include: tasks/ufw.yml
     - include: tasks/nginx.yml
-    - include: tasks/mail.yml
-
-  roles:
-    # LATER - dev-sec.os-hardening
-    - dev-sec.ssh-hardening
-    - angstwad.docker_ubuntu
+    #- include: tasks/mail.yml
